@@ -1,0 +1,4 @@
+github.com/alexedwards/flow v0.0.0-20220806114457-cf11be9e0e03 h1:r07xZN3ENBWdxGuU/feCsnpsgHJ7+3uLm7cq9S0sqoI=
+github.com/alexedwards/flow v0.0.0-20220806114457-cf11be9e0e03/go.mod h1:1rjOQiOqQlmMdUMuvlJFjldqTnE/tQULE7qPIu4aq3U=
+schneider.vip/problem v1.8.1 h1:oAgLMu286aNHgvjuoR1PowYx+7hyBUjyzbrFPR1dEMI=
+schneider.vip/problem v1.8.1/go.mod h1:6hLRfO1e1MQWdG23Kl5b3Yp5FSexE+YiGVqCkAp3HUQ=
