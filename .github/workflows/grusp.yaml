@@ -23,7 +23,7 @@ jobs:
           version: v1.14.0
           args: demo:build
   publish:
-    needs: [lint, test]
+    needs: [build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
