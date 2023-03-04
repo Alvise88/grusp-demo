@@ -1,0 +1,76 @@
+---
+kind: WorkflowTemplate
+apiVersion: argoproj.io/v1alpha1
+metadata:
+  name: git-checkout-v1
+  annotations:
+    workflows.argoproj.io/maintainer: "jeeg@mailup.com"
+    workflows.argoproj.io/description: >-
+      this workflow template contains a template to checkout git repository
+    workflows.argoproj.io/tags: git
+    workflows.argoproj.io/version: ">= 3.4.0"
+spec:
+  templates:
+    - name: git-checkout
+      inputs:
+        parameters:
+          # Repository name with owner
+          - name: repository
+          # The branch, tag or SHA to checkout. When checking out the repository that
+          # triggered a workflow, this defaults to the reference or SHA for that event.
+          # Otherwise, uses the default branch.
+          - name: ref
+          # Relative path under workspaces to place the repository
+          - name: path
+          # Whether to execute `git clean -ffdx && git reset --hard HEAD`
+          # Default: true
+          - name: clean
+            default: true
+          # Add repository path as safe.directory for Git global config by running `git
+          # config --global --add safe.directory <path>`
+          # Default: true
+          - name: set-safe-directory
+            default: true
+          # SSH key used to fetch the repository read from kubernetes secret with name given by ssh key
+          # and key id_rsa
+          - name: ssh-key
+          # Whether to perform strict host key checking. When true, adds the options
+          # `StrictHostKeyChecking=yes` and `CheckHostIP=no` to the SSH command line. Use
+          # the input `ssh-known-hosts` to configure additional hosts.
+          # Default: false
+          - name: ssh-strict
+            default: false
+      volumes:
+        - name: ssh-key
+          secret:
+            secretName: "{{inputs.parameters.ssh-key}}"
+            defaultMode: 384 # Equivalent to 0600
+            items:
+              - key: id_rsa
+                path: ./id_rsa
+      script:
+        image: bitnami/git:2.37.1
+        workingDir: /workspaces/{{inputs.parameters.path}}
+        command: [bash]
+        source: |
+          echo "    IdentityFile ~/.ssh/id_rsa" >> /etc/ssh/ssh_config
+
+          # Host Key verification
+          # ssh-keyscan -t rsa -H bitbucket.org >> ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+
+          # Git config
+          git config --global url."ssh://git@bitbucket.org/".insteadOf "https://bitbucket.org/"
+
+          git init .
+          git remote add origin {{inputs.parameters.repository}}
+          git fetch origin
+          git fetch --all --tags
+          # git checkout origin/{{inputs.parameters.ref}} -ft
+          git pull origin {{inputs.parameters.ref}}
+
+        volumeMounts:
+          - name: "{{workflow.parameters.workspaces-volume}}"
+            mountPath: /workspaces
+          - name: ssh-key
+            mountPath: /root/.ssh

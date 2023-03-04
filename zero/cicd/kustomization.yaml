@@ -1,0 +1,42 @@
+---
+kind: Kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+
+namespace: cicd
+
+resources:
+  - ./secrets
+  - ./resources/ns.yaml
+  - ./resources/cfg.yaml
+  - ./resources/sa.yaml
+  - ./resources/base.yaml
+  - ./resources/dagger.yaml
+  - ./resources/sdks.yaml
+
+configMapGenerator:
+  - name: installer-scripts-v1
+    behavior: merge
+    files:
+      - install_jq.sh=scripts.d/install_jq.sh
+      - install_yq.sh=scripts.d/install_yq.sh
+      - install_sops.sh=scripts.d/install_sops.sh
+      - install_dagger.sh=scripts.d/install_dagger.sh
+      - install_go.sh=scripts.d/install_go.sh
+      - install_mage.sh=scripts.d/install_mage.sh
+      - install_argoci.sh=scripts.d/install_argoci.sh
+      - install_kubectl.sh=scripts.d/install_kubectl.sh
+
+  - name: dind-config-v1
+    behavior: merge
+    files:
+      - daemon.json=dind.d/daemon.json
+
+  - name: buildkit-config-v1
+    behavior: merge
+    files:
+      - buildkitd.toml=buildkit.d/buildkitd.toml
+
+  - name: dagger-config-v1
+    behavior: merge
+    files:
+      - engine.toml=dagger.d/engine.toml

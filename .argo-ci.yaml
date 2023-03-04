@@ -1,0 +1,20 @@
+name: "grusp"
+on: ["push", "pull_request"]
+env:
+  DO_NOT_TRACK: true
+jobs:
+  build:
+    runs-on: go # scelta del sdk
+    steps:
+      - name: build
+        with:
+          action: "demo:build" # azione da esguire
+          registry-creds: regcred
+  publish:
+    needs: [lint, test] # dipendenze tra job
+    runs-on: go
+    steps:
+      - name: publish
+        with:
+          action: "demo:publish"
+          registry-creds: regcred # credenziali da k8s

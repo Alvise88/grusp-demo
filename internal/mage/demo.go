@@ -85,6 +85,8 @@ func (t Demo) Deploy(ctx context.Context) error {
 		// WithExec(asbtractionutil.ToCommand("cdk8s --version")).
 		WithExec(asbtractionutil.ToCommand("cdk8s import")).
 		WithExec(cdkCommand).
+		// WithExec(asbtractionutil.ToCommand("ls -la")).
+		WithExec(asbtractionutil.ToCommand("kubectl apply -f ./dist/hello.k8s.yaml")).
 		ExitCode(ctx)
 
 	return err

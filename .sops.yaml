@@ -1,0 +1,3 @@
+creation_rules:
+  - path_regex: zero/cicd/.*
+    pgp: "1F64B8F1DD53CE14DAB8927C6C63C7F36AED914F"

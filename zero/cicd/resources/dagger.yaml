@@ -1,0 +1,57 @@
+# ---
+# kind: PersistentVolumeClaim
+# apiVersion: v1
+# metadata:
+#   name: dagger-pv-claim
+# spec:
+#   storageClassName: openebs-hostpath
+#   accessModes:
+#     - ReadWriteOnce
+#   volumeMode: Filesystem
+#   resources:
+#     requests:
+#       storage: 60Gi
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: dagger
+spec:
+  volumes:
+    # - name: data
+    #   persistentVolumeClaim:
+    #     claimName: dagger-pv-claim
+    - name: data
+      emptyDir: {}
+    - name: dagger-config
+      configMap:
+        name: dagger-config-v1
+        defaultMode: 0777
+    - name: shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 2048Mi
+  containers:
+    - name: dagger
+      # image: registry.dagger.io/engine:v0.3.14
+      image: registry.dagger.io/engine@sha256:f19205159d0b0ee0e5ffef4c1a374b9681a955d208b180e07e979e5630d77a5c
+      securityContext:
+        privileged: true
+      env:
+        - name: _EXPERIMENTAL_DAGGER_SERVICES_DNS
+          value: "1"
+      volumeMounts:
+        - mountPath: /var/lib/dagger
+          name: data
+        - mountPath: /etc/dagger/engine.toml
+          name: dagger-config
+          subPath: engine.toml
+        - mountPath: /dev/shm
+          name: shm
+      resources: # Because if limits = requests then QoS is set to "Guaranteed"
+        limits:
+          memory: "1024Mi" # If container uses over 500MB it is killed (OOM)
+          cpu: "0.5" # Not normally needed, unless you need to protect other workloads or QoS must be "Guaranteed"
+        requests:
+          memory: "1024Mi" # Scheduler finds a node where 500MB is available
+          cpu: "0.5" # Scheduler finds a node where 1 vCPU is available

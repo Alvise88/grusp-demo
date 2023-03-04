@@ -31,7 +31,12 @@
 		"ghcr.io/guiyomh/features/mage:0": {
 			"version": "1.14.0"
 		},
-		"ghcr.io/jungaretti/features/make:1": {}
+		"ghcr.io/jungaretti/features/make:1": {},
+		"ghcr.io/eitsupi/devcontainer-features/jq-likes:1": {
+			"jqVersion": "os-provided",
+			"yqVersion": "latest",
+			"gojqVersion": "latest"
+		}
 	},
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},

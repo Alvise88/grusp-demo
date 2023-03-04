@@ -1,0 +1,6 @@
+debug = false
+[registry."docker.io"]
+  mirrors = ["docker-registry.container-registry.svc.cluster.local:5000"]
+[registry."docker-registry.container-registry.svc.cluster.local:5000"]
+  http = true
+  insecure = true

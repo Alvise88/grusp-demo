@@ -1,0 +1,260 @@
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: docker-registry-pv-claim
+spec:
+  storageClassName: openebs-hostpath
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 60Gi
+---
+# Source: docker-registry/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: docker-registry-secret
+  labels:
+    app: docker-registry
+    chart: docker-registry-2.1.0
+    heritage: Helm
+    release: docker-registry
+type: Opaque
+data:
+  htpasswd: YWRtaW46JDJ5JDA1JFpsZDdsLy5KeGl3Z3k5eFVDQk1icmVmVXVPZnl2Wjc3MFlnOG1qSWRsV0dCVndUQmdPUTZT
+  haSharedSecret: "bHhKNVY2WVg2TUx2T1luMQ=="
+  proxyUsername: ""
+  proxyPassword: ""
+---
+# Source: docker-registry/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: docker-registry-config
+  labels:
+    app: docker-registry
+    chart: docker-registry-2.1.0
+    heritage: Helm
+    release: docker-registry
+data:
+  config.yml: |-
+    health:
+      storagedriver:
+        enabled: true
+        interval: 10s
+        threshold: 3
+    http:
+      addr: :5000
+      debug:
+        addr: :5001
+        prometheus:
+          enabled: false
+          path: /metrics
+      headers:
+        X-Content-Type-Options:
+        - nosniff
+    log:
+      fields:
+        service: registry
+    storage:
+      cache:
+        blobdescriptor: inmemory
+    proxy:
+      remoteurl: https://registry-1.docker.io
+    version: 0.1
+---
+# Source: docker-registry/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: docker-registry
+  labels:
+    app: docker-registry
+    chart: docker-registry-2.1.0
+    release: docker-registry
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      protocol: TCP
+      name: http-5000
+      targetPort: 5000
+  selector:
+    app: docker-registry
+    release: docker-registry
+---
+# Source: docker-registry/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docker-registry
+  labels:
+    app: docker-registry
+    chart: docker-registry-2.1.0
+    release: docker-registry
+    heritage: Helm
+spec:
+  selector:
+    matchLabels:
+      app: docker-registry
+      release: docker-registry
+  replicas: 1
+  minReadySeconds: 5
+  template:
+    metadata:
+      labels:
+        app: docker-registry
+        release: docker-registry
+      annotations:
+        checksum/config: e738398bf5880f1d1b5d25d4cb57dc75c005b0c9460912260bfb86da4ec9a05d
+        checksum/secret: 785c42ab519a7b846dc9f4516f51990c3b2ed3eead4ce26bf35ff8bb94b25727
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      containers:
+        - name: docker-registry
+          image: "registry:2.8.1"
+          imagePullPolicy: IfNotPresent
+          command:
+          - /bin/registry
+          - serve
+          - /etc/docker/registry/config.yml
+          ports:
+            - containerPort: 5000
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5000
+          resources:
+            {}
+          env:
+            # - name: REGISTRY_AUTH
+            #   value: "htpasswd"
+            # - name: REGISTRY_AUTH_HTPASSWD_REALM
+            #   value: "Registry Realm"
+            # - name: REGISTRY_AUTH_HTPASSWD_PATH
+            #   value: "/auth/htpasswd"
+            # - name: REGISTRY_HTTP_SECRET
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: docker-registry-secret
+            #       key: haSharedSecret
+            - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+              value: "/var/lib/registry"
+            - name: REGISTRY_STORAGE_DELETE_ENABLED
+              value: "true"
+          volumeMounts:
+            - name: auth
+              mountPath: /auth
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/registry/
+            - name: "docker-registry-config"
+              mountPath: "/etc/docker/registry"
+      nodeSelector:
+        "node-role.kubernetes.io/storage": "storage"
+      volumes:
+        - name: auth
+          secret:
+            secretName: docker-registry-secret
+            items:
+            - key: htpasswd
+              path: htpasswd
+        - name: data
+          persistentVolumeClaim:
+            claimName: docker-registry-pv-claim
+        - name: docker-registry-config
+          configMap:
+            name: docker-registry-config
+# ---
+# # Source: docker-registry-ui/templates/ui-service.yaml
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: docker-registry-ui-ui
+#   labels:
+#     app: registry-ui
+#     chart: docker-registry-ui-0.1.0
+#     release: docker-registry-ui
+#     app/version: "1.2.1"
+# spec:
+#   type: ClusterIP
+#   ports:
+#     - port: 80
+#       targetPort: http
+#       protocol: TCP
+#       name: http
+#   selector:
+#       app: registry-ui
+#       release: docker-registry-ui
+# ---
+# # Source: docker-registry-ui/templates/ui-deployment.yaml
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: docker-registry-ui-ui
+#   labels:
+#     app: registry-ui
+#     chart: docker-registry-ui-0.1.0
+#     release: docker-registry-ui
+#     app/version: "1.2.1"
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: registry-ui
+#       release: docker-registry-ui
+#   template:
+#     metadata:
+#       labels:
+#         app: registry-ui
+#         release: docker-registry-ui
+#     spec:
+#       containers:
+#         - name: registry-ui
+#           image: "docker.io/joxit/docker-registry-ui:2.2.1"
+#           imagePullPolicy: Always
+#           env:
+#             - name: REGISTRY_TITLE
+#               value: "MailUP Proxy Registry"
+#             - name: DELETE_IMAGES
+#               value: "true"
+#             - name: URL
+#               value: "https://registry.nweb.info"
+#             - name: PULL_URL
+#               value: "https://registry.nweb.info"
+#           ports:
+#             - name: http
+#               containerPort: 80
+#               protocol: TCP
+#           livenessProbe:
+#             httpGet:
+#               path: /
+#               port: http
+#           readinessProbe:
+#             httpGet:
+#               path: /
+#               port: http
+#           resources:
+#             {}
+#       nodeSelector:
+#         "node-role.kubernetes.io/storage": "storage"
+# ---
+# kind: Secret
+# apiVersion: v1
+# metadata:
+#   name: docker-registry-ui-secret
+# type: Opaque
+# data:
+#   htpasswd: YWRtaW46JDJ5JDA1JDBhc21oUE16aXF3UEp4d3ZqeEJraGVaWG5hRlA1OUtYVS5hNlBNc3VFRUx1cC55TEhEeWZ1Cgo=
+
+
