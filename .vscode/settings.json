@@ -1,0 +1,11 @@
+{
+    "workbench.colorTheme": "GitHub Dark Colorblind (Beta)",
+    // "vs-kubernetes": {
+    //     "vs-kubernetes.kubectl-path": "/usr/local/bin/kubectl",
+    //     "vs-kubernetes.suppress-kubectl-not-found-alerts": true
+    // }
+    // "vs-kubernetes": {
+    //     "vscode-kubernetes.kubectl-path": "/usr/local/bin/kubectl",
+    // },
+    "vscode-kubernetes.kubectl-path": "/usr/local/bin/kubectl",
+}

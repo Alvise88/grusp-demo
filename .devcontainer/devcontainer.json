@@ -1,9 +1,18 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/debian
+// README at: https://github.com/devcontainers/templates/tree/main/src/docker-outside-of-docker-compose
 {
 	"name": "Grusp - Dagger Demo",
-	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "mcr.microsoft.com/devcontainers/base:bullseye",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "grusp",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	// Use this environment variable if you need to bind mount your local source code into a new container.
+	"remoteEnv": {
+		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+	},
+	"forwardPorts": [
+		443,
+		18080
+	],
 	"features": {
 		"ghcr.io/devcontainers/features/docker-in-docker:2": {
 			"moby": true,
@@ -16,13 +25,15 @@
 		},
 		"ghcr.io/devcontainers/features/node:1": {
 			"nodeGypDependencies": true,
-			"version": "lts"
+			"version": "18"
 		},
 		"ghcr.io/mpriscella/features/kind:1": {
 			"version": "v0.17.0"
 		},
-		"ghcr.io/devcontainers-contrib/features/kubectl-asdf:2": {
-			"version": "1.23.16"
+		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+			"version": "1.25",
+			"helm": "none",
+			"minikube": "none"
 		},
 		"ghcr.io/guiyomh/features/golangci-lint:0": {},
 		"ghcr.io/mpriscella/features/sops:1": {
@@ -38,11 +49,6 @@
 			"gojqVersion": "latest"
 		}
 	},
-	// Features to add to the dev container. More info: https://containers.dev/features.
-	// "features": {},
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// "forwardPorts": [],
-	// Configure tool-specific properties.
 	"customizations": {
 		// Configure properties specific to VS Code.
 		"vscode": {
@@ -68,9 +74,10 @@
 				"gopls": {
 					"ui.semanticTokens": true
 				},
+				"vscode-kubernetes.kubectl-path": "/usr/local/bin/kubectl",
 				"terminal.integrated.fontFamily": "'Go Mono', Menlo, Monaco, 'Courier New', monospace",
 				// Theme setup
-				"workbench.colorTheme": "GitHub Light Colorblind (Beta)",
+				"workbench.colorTheme": "GitHub Dark Colorblind (Beta)",
 				"workbench.iconTheme": "vscode-icons",
 				"workbench.editor.enablePreview": false
 			},
@@ -90,6 +97,10 @@
 		}
 	},
 	"postCreateCommand": ".devcontainer/setup.sh"
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": "docker --version",
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
 }

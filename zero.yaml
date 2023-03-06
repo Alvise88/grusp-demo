@@ -12,7 +12,7 @@ networking:
   apiServerPort: 6443
 nodes:
   - role: control-plane
-    image: kindest/node:v1.23.13
+    image: kindest/node:v1.25.3
     kubeadmConfigPatches:
       - |
         kind: InitConfiguration
@@ -25,4 +25,7 @@ nodes:
         protocol: TCP
       - containerPort: 443
         hostPort: 443
+        protocol: TCP
+      - containerPort: 18080
+        hostPort: 18080
         protocol: TCP

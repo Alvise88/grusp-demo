@@ -7,11 +7,11 @@ import (
 	"grusp.io/infra/imports/k8s"
 )
 
-type MyChartProps struct {
+type GruspChartProps struct {
 	cdk8s.ChartProps
 }
 
-func NewMyChart(scope constructs.Construct, id string, props *MyChartProps) cdk8s.Chart {
+func NewGruspChart(scope constructs.Construct, id string, props *GruspChartProps) cdk8s.Chart {
 	var cprops cdk8s.ChartProps
 	if props != nil {
 		cprops = props.ChartProps
@@ -57,6 +57,6 @@ func NewMyChart(scope constructs.Construct, id string, props *MyChartProps) cdk8
 
 func main() {
 	app := cdk8s.NewApp(nil)
-	NewMyChart(app, "hello", nil)
+	NewGruspChart(app, "hello", nil)
 	app.Synth()
 }
