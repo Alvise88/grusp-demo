@@ -48,10 +48,10 @@ spec:
           subPath: engine.toml
         - mountPath: /dev/shm
           name: shm
-      resources: # Because if limits = requests then QoS is set to "Guaranteed"
-        limits:
-          memory: "1024Mi" # If container uses over 500MB it is killed (OOM)
-          cpu: "0.5" # Not normally needed, unless you need to protect other workloads or QoS must be "Guaranteed"
-        requests:
-          memory: "1024Mi" # Scheduler finds a node where 500MB is available
-          cpu: "0.5" # Scheduler finds a node where 1 vCPU is available
+      # resources: # Because if limits = requests then QoS is set to "Guaranteed"
+      #   limits:
+      #     memory: "1024Mi" # If container uses over 500MB it is killed (OOM)
+      #     cpu: "0.5" # Not normally needed, unless you need to protect other workloads or QoS must be "Guaranteed"
+      #   requests:
+      #     memory: "1024Mi" # Scheduler finds a node where 500MB is available
+      #     cpu: "0.5" # Scheduler finds a node where 1 vCPU is available

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+cd "$(dirname "$0")"
+
 echo "Installing Starship"
 
 # curl -sS https://starship.rs/install.sh | sh - -y
@@ -20,3 +22,12 @@ grep -qF "code --wait" ~/.bashrc ||  echo 'export EDITOR="code --wait"' >> ~/.ba
 [ ! -f ../.env ] || source ../.env
 
 npm install -g cdk8s-cli
+
+# add dns entry
+
+grep -qF "argowf.grusp.io" /etc/hosts  || echo "172.24.0.2  argowf.grusp.io" |  sudo tee -a /etc/hosts
+grep -qF "hello.grusp.io" /etc/hosts  || echo "172.24.0.2   hello.grusp.io" |  sudo tee -a /etc/hosts
+
+
+rm /home/vscode/.docker/config.json
+../login.sh

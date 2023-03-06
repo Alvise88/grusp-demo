@@ -11,10 +11,18 @@ jobs:
           action: "demo:build" # azione da esguire
           registry-creds: regcred
   publish:
-    needs: [lint, test] # dipendenze tra job
+    needs: [build] # dipendenze tra job
     runs-on: go
     steps:
       - name: publish
         with:
           action: "demo:publish"
+          registry-creds: regcred # credenziali da k8s
+  deploy:
+    needs: [publish] # dipendenze tra job
+    runs-on: go
+    steps:
+      - name: deploy
+        with:
+          action: "demo:deploy"
           registry-creds: regcred # credenziali da k8s

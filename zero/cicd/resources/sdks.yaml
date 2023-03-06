@@ -14,181 +14,6 @@ metadata:
     workflows.argoproj.io/version: ">= 3.4.0"
 spec:
   templates:
-    - name: cue-sdk
-      inputs:
-        parameters:
-          - name: action
-          # # Env file as string
-          - name: env
-            default: ""
-          - name: artifacts
-            default: "/result"
-          - name: context
-            default: "."
-          # Relative path under workspaces as base directory, must be provided and unique
-          - name: path
-          - name: gpg-key # FIXME change to list
-            default: gpg-key
-          - name: log-format
-            default: "plain"
-          - name: log-level
-            default: info
-          - name: dagger-version
-            default: "0.2.36"
-          - name: buildkit-version
-            default: "0.10.6"
-          - name: sops-version
-            default: "3.7.3"
-      volumes:
-        - name: installer-scripts
-          configMap:
-            name: installer-scripts-v1
-            defaultMode: 0777
-        - name: buildkit-config
-          configMap:
-            name: buildkit-config-v1
-            defaultMode: 0777
-        - name: dind-config
-          configMap:
-            name: dind-config-v1
-            defaultMode: 0777
-        - name: gpg-key
-          secret:
-            secretName: "{{inputs.parameters.gpg-key}}"
-            defaultMode: 384 # Equivalent to 0600
-            items:
-              - key: gpg.asc
-                path: ./gpg.asc
-        - name: dagger-cache
-          emptyDir: {} # Or other volume type
-        - name: dind-socket
-          emptyDir: {}
-        - name: custom-tools
-          emptyDir: {}
-      initContainers:
-        - name: download-tools
-          image: docker:20.10.23-alpine3.17
-          command: [sh, -c]
-          args:
-            - >-
-              apk update && apk add bash curl &&
-
-              /installer-scripts/install_jq.sh &&
-              /installer-scripts/install_yq.sh &&
-              /installer-scripts/install_sops.sh &&
-              /installer-scripts/install_dagger.sh
-          volumeMounts:
-            - name: installer-scripts
-              mountPath: /installer-scripts
-            - name: custom-tools
-              mountPath: /custom-tools
-      script:
-        image: docker:20.10.23-alpine3.17
-        env:
-          - name: DOCKER_CONFIG
-            value: /root/.docker
-          - name: DOCKER_HOST
-            value: 127.0.0.1
-          - name: DAGGER_CACHE_PATH
-            value: /tmp/.dagger-cache
-        volumeMounts:
-          - name: "{{workflow.parameters.workspaces-volume}}"
-            mountPath: /workspaces
-          - name: dind-socket
-            mountPath: /var/run/
-          - name: gpg-key
-            mountPath: /root/.gpg
-          - mountPath: /tmp/.dagger-cache
-            name: dagger-cache
-          # Important: Mount tools into $PATH
-          - name: custom-tools
-            subPath: jq
-            mountPath: /usr/local/bin/jq
-          - name: custom-tools
-            subPath: sops
-            mountPath: /usr/local/bin/sops
-          - name: custom-tools
-            subPath: dagger
-            mountPath: /usr/local/bin/dagger
-        workingDir: /workspaces/{{inputs.parameters.path}}
-        command: ["sh"]
-        source: |
-          quote () { printf %s\\n "$1" | sed "s/'/'\\\\''/g;1s/^/'/;\$s/\$/'/" ; }
-          double_quote() { quote $1 | sed "s/'/\"/g" ; }
-
-          # Install gpg, FIXME try to use cutom tools
-          apk update >/dev/null 2>&1; apk add -U --no-cache gpg gpg-agent >/dev/null 2>&1
-
-          build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-
-          # Start gpg agent
-          gpg-agent --daemon
-          # Import gpg keys
-          gpg --import ~/.gpg/gpg.asc
-
-          # Compute gpg keys env variables
-          export GPG_KEY=$(cat ~/.gpg/gpg.asc)
-
-          echo "Waiting docker ..."
-          until docker ps 1> /dev/null 2> /dev/null; do sleep 3; done;
-
-          env="{{inputs.parameters.env}}"
-          action="{{inputs.parameters.action}}"
-          log_format="{{inputs.parameters.log-format}}"
-          log_level="{{inputs.parameters.log-level}}"
-
-          # Compute env variables for dagger plan
-
-          { env_variables=$(cat) ; } <<'EOE'
-          {{inputs.parameters.env}}
-          EOE
-          if ! [ "${env}" == "" ]; then
-            # Compute env variables from input env parameter
-            mkdir -p /tmp; printf "%s" "${env_variables}" | sed -e '/^#/d;/^\s*$/d' -e "s/'/'\\\''/g" -e "s/=\(.*\)/='\1'/g" > /tmp/.env
-
-            set -a      # turn on automatic exporting
-            . /tmp/.env
-            set +a      # turn off automatic exporting
-          fi
-
-          # run custom buildkit, volume must be present in sidecar
-          docker pull moby/buildkit:v{{inputs.parameters.buildkit-version}} >/dev/null 2>&1
-          docker run --net=host -d --restart always \
-            -v /buildkit-config/buildkitd.toml:/etc/buildkit/buildkitd.toml \
-            --name dagger-buildkitd --privileged moby/buildkit:v{{inputs.parameters.buildkit-version}}
-
-          # force dagger to use the running buildkit
-          export BUILDKIT_HOST=docker-container://dagger-buildkitd
-
-          export DAGGER_LOG_FORMAT=${log_format}
-          export DAGGER_LOG_LEVEL=${log_level}
-
-          dagger project update
-
-          dagger do ${action}
-      sidecars:
-        - name: dind
-          image: docker:20.10.23-dind-alpine3.17
-          env:
-            - name: DOCKER_TLS_CERTDIR
-              value: ""
-          securityContext:
-            privileged: true
-          volumeMounts:
-            - name: dind-socket
-              mountPath: /var/run/
-            - name: buildkit-config
-              mountPath: /buildkit-config
-            - name: dind-config
-              subPath: daemon.json
-              mountPath: /etc/docker/daemon.json
-          command: [dockerd-entrypoint.sh]
-      outputs:
-        artifacts:
-          - name: result
-            # fromExpression: "inputs.parameters.artifacts == '' ? '/artifacts' : inputs.parameters.artifacts"
-            path: "{{inputs.parameters.artifacts}}"
-            optional: true
     - name: go-sdk
       inputs:
         parameters:
@@ -209,7 +34,7 @@ spec:
           - name: registry-creds
             default: regcred
           - name: registry-creds-format
-            default: "extended" # collapsed
+            default: "collapsed" # collapsed
           - name: ssh-key # FIXME change to list
             default: ssh-key
           - name: gpg-key # FIXME change to list
@@ -242,6 +67,20 @@ spec:
             items:
               - key: gpg.asc
                 path: ./gpg.asc
+        - name: docker-creds
+          secret:
+            secretName: "{{inputs.parameters.registry-creds}}"
+            defaultMode: 384 # Equivalent to 0600
+            items:
+              - key: .dockerconfigjson
+                path: ./config.json
+        - name: kube-creds
+          secret:
+            secretName: "kubecred"
+            defaultMode: 384 # Equivalent to 0600
+            items:
+              - key: .kubeconfig
+                path: ./config
         - name: dagger-cache
           emptyDir: {} # Or other volume type
         - name: dind-socket
@@ -283,6 +122,10 @@ spec:
             mountPath: /var/run/
           - name: gpg-key
             mountPath: /root/.gpg
+          - name: docker-creds
+            mountPath: /root/.docker
+          - name: kube-creds
+            mountPath: /root/.kube
           - mountPath: /tmp/.dagger-cache
             name: dagger-cache
           # Important: Mount tools into $PATH
@@ -332,14 +175,6 @@ spec:
           # Compute ssh keys env variables
           export SSH_KEY=$(cat ~/.ssh/id_rsa)
 
-          # Start gpg agent
-          gpg-agent --daemon
-          # Import gpg keys
-          gpg --import ~/.gpg/gpg.asc
-
-          # Compute gpg keys env variables
-          export GPG_KEY=$(cat ~/.gpg/gpg.asc)
-
           echo "Waiting docker ..."
           until docker ps 1> /dev/null 2> /dev/null; do sleep 3; done;
 
@@ -348,18 +183,7 @@ spec:
           log_format="{{inputs.parameters.log-format}}"
           log_level="{{inputs.parameters.log-level}}"
 
-          registry_url=`printf %s "{{inputs.parameters.registry-url}}"`
           tags=`printf %s "{{inputs.parameters.tags}}"`
-
-          registry_creds_format=`printf %s "{{inputs.parameters.registry-creds-format}}"`
-
-          # Compute env variables for dagger plan
-          # Compute registry env variables
-          ! [ "${registry_url}" = "" ] && export REGISTRY_URL="${registry_url}" && export REGISTRY="${registry_url}"
-          ! [ "${registry_url}" = "" ] && [ "${registry_creds_format}" = "collapsed" ] && export REGISTRY_PASSWORD=$(cat ~/.docker/config.json | sed  s/'http[s]\?:\/\/'// | jq '.auths."'"${registry_url}"'".auth' | tr -d \" | rev | cut -d: -f1 | rev)
-          ! [ "${registry_url}" = "" ] && [ "${registry_creds_format}" = "collapsed" ] && export REGISRY_USER=$(cat ~/.docker/config.json | sed  s/'http[s]\?:\/\/'// | jq '.auths."'"${registry_url}"'".auth' | tr -d \" | cut -d: -f1 | tr -d '\n' | sed 's/ *$//g')
-          ! [ "${registry_url}" = "" ] && [ "${registry_creds_format}" = "extended" ] && export REGISTRY_PASSWORD=$(cat ~/.docker/config.json | sed  s/'http[s]\?:\/\/'// | jq '.auths."'"${registry_url}"'".password' | tr -d \"  | tr -d '\n' | sed 's/ *$//g')
-          ! [ "${registry_url}" = "" ] && [ "${registry_creds_format}" = "extended" ] && export REGISRY_USER=$(cat ~/.docker/config.json | sed  s/'http[s]\?:\/\/'// | jq '.auths."'"${registry_url}"'".username' | tr -d \"  | tr -d '\n' | sed 's/ *$//g')
 
           # Compute tags env variables
           ! [ "${tags}" = "" ] && export TAGS="${tags}"
@@ -378,13 +202,6 @@ spec:
 
           export _EXPERIMENTAL_DAGGER_SERVICES_DNS="1"
           export _EXPERIMENTAL_DAGGER_CACHE_CONFIG="type=registry;ref=docker-registry.container-registry.svc.cluster.local:5000/ci-cache;mode=max"
-
-          docker run --net=host -d --restart always \
-            -e _EXPERIMENTAL_DAGGER_SERVICES_DNS \
-            -e _EXPERIMENTAL_DAGGER_CACHE_CONFIG \
-            -v /dagger-config/engine.toml:/etc/dagger/engine.toml \
-            --name dagger-engine.ci --privileged registry.dagger.io/engine@sha256:f19205159d0b0ee0e5ffef4c1a374b9681a955d208b180e07e979e5630d77a5c
-
           export _EXPERIMENTAL_DAGGER_RUNNER_HOST=kube-pod://dagger
 
           go env -w GOPRIVATE=bitbucket.org/mailupteam/*

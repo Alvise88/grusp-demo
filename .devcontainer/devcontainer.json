@@ -10,8 +10,7 @@
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
 	},
 	"forwardPorts": [
-		443,
-		18080
+		443
 	],
 	"features": {
 		"ghcr.io/devcontainers/features/docker-in-docker:2": {

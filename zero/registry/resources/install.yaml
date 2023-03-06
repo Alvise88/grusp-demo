@@ -1,16 +1,16 @@
----
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  name: docker-registry-pv-claim
-spec:
-  storageClassName: openebs-hostpath
-  accessModes:
-    - ReadWriteOnce
-  volumeMode: Filesystem
-  resources:
-    requests:
-      storage: 60Gi
+# ---
+# kind: PersistentVolumeClaim
+# apiVersion: v1
+# metadata:
+#   name: docker-registry-pv-claim
+# spec:
+#   storageClassName: openebs-hostpath
+#   accessModes:
+#     - ReadWriteOnce
+#   volumeMode: Filesystem
+#   resources:
+#     requests:
+#       storage: 60Gi
 ---
 # Source: docker-registry/templates/secret.yaml
 apiVersion: v1
@@ -121,9 +121,9 @@ spec:
           image: "registry:2.8.1"
           imagePullPolicy: IfNotPresent
           command:
-          - /bin/registry
-          - serve
-          - /etc/docker/registry/config.yml
+            - /bin/registry
+            - serve
+            - /etc/docker/registry/config.yml
           ports:
             - containerPort: 5000
           livenessProbe:
@@ -134,8 +134,7 @@ spec:
             httpGet:
               path: /
               port: 5000
-          resources:
-            {}
+          resources: {}
           env:
             # - name: REGISTRY_AUTH
             #   value: "htpasswd"
@@ -160,18 +159,19 @@ spec:
               mountPath: /var/lib/registry/
             - name: "docker-registry-config"
               mountPath: "/etc/docker/registry"
-      nodeSelector:
-        "node-role.kubernetes.io/storage": "storage"
+      # nodeSelector:
+      #   "node-role.kubernetes.io/storage": "storage"
       volumes:
         - name: auth
           secret:
             secretName: docker-registry-secret
             items:
-            - key: htpasswd
-              path: htpasswd
+              - key: htpasswd
+                path: htpasswd
         - name: data
-          persistentVolumeClaim:
-            claimName: docker-registry-pv-claim
+          emptyDir: {}
+          # persistentVolumeClaim:
+          #   claimName: docker-registry-pv-claim
         - name: docker-registry-config
           configMap:
             name: docker-registry-config
@@ -256,5 +256,4 @@ spec:
 # type: Opaque
 # data:
 #   htpasswd: YWRtaW46JDJ5JDA1JDBhc21oUE16aXF3UEp4d3ZqeEJraGVaWG5hRlA1OUtYVS5hNlBNc3VFRUx1cC55TEhEeWZ1Cgo=
-
 

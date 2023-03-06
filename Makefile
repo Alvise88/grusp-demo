@@ -6,21 +6,25 @@ NORMAL := \033[0m
 GREEN := \033[1;32m
 
 KIND_CLUSTER_NAME ?= zero
-KIND_CLUSTEER_IP = $(ifconfig eth0 | awk '/inet / {print $2; }' | cut -d ' ' -f 2 |  tr -d '\n')
+KIND_CLUSTEER_IP := $(shell ./fetch_ip.sh)
 
 define setup_env
 	./generate_dotenv.sh
 endef
 
+# # 
+
 .PHONY: kind
 bootstrap: # Create Kind cluster
 	@echo "TODO: Maybe convert to a Dagger package: https://github.com/kubernetes-sigs/kind/issues/2833"
 	(  kind get clusters | grep -q $(KIND_CLUSTER_NAME) ) \
-	|| yq e '.networking.apiServerAddress = "${KIND_CLUSTEER_IP}"' zero.yaml | kind create cluster --name $(KIND_CLUSTER_NAME) --config -
+	|| yq e '.networking.apiServerAddress = "$(KIND_CLUSTEER_IP)"' zero.yaml | kind create cluster --name $(KIND_CLUSTER_NAME) --config -
 
 cluster: bootstrap
-	kubectl create secret generic regcred --from-file=.dockerconfigjson=/home/vscode/.docker/config.json --type=kubernetes.io/dockerconfigjson || true
+	kubectl -n cicd create secret generic kubecred --from-file=.kubeconfig=/home/vscode/.kube/config || true
+	kubectl -n default create secret generic regcred --from-file=.dockerconfigjson=/home/vscode/.docker/config.json --type=kubernetes.io/dockerconfigjson || true
 	kubectl kustomize --enable-alpha-plugins ./zero | kubectl apply -f -
+	kubectl -n cicd create secret generic regcred --from-file=.dockerconfigjson=/home/vscode/.docker/config.json --type=kubernetes.io/dockerconfigjson || true
 
 connection: cluster
 	$(call setup_env)
