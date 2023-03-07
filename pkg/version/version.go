@@ -2,6 +2,7 @@ package version
 
 import (
 	"fmt"
+	"strconv"
 
 	"dagger.io/dagger"
 	"github.com/alvise88/grusp-demo/pkg/git"
@@ -9,7 +10,8 @@ import (
 )
 
 type Opts struct {
-	Base string
+	Base  string
+	Dirty bool
 
 	Source *dagger.Directory
 }
@@ -36,6 +38,7 @@ func Version(c *dagger.Client, opts Opts) (*dagger.Container, error) {
 
 	semVer := git.
 		WithEnvVariable("BASE", opts.Base).
+		WithEnvVariable("DIRTY", strconv.FormatBool(opts.Dirty)).
 		WithMountedDirectory("/scripts", dir).
 		WithMountedDirectory("/src", opts.Source).
 		WithWorkdir("/src").

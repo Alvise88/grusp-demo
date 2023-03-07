@@ -96,9 +96,6 @@ spec:
               apk update && apk add bash curl &&
 
               /installer-scripts/install_kubectl.sh &&
-              /installer-scripts/install_jq.sh &&
-              /installer-scripts/install_yq.sh &&
-              /installer-scripts/install_sops.sh &&
               /installer-scripts/install_go.sh &&
               /installer-scripts/install_mage.sh
           volumeMounts:
@@ -133,12 +130,6 @@ spec:
             subPath: kubectl
             mountPath: /usr/local/bin/kubectl
           - name: custom-tools
-            subPath: jq
-            mountPath: /usr/local/bin/jq
-          - name: custom-tools
-            subPath: sops
-            mountPath: /usr/local/bin/sops
-          - name: custom-tools
             subPath: go
             mountPath: /usr/local/go
           - name: custom-tools
@@ -157,26 +148,6 @@ spec:
           apk update >/dev/null 2>&1; apk add -U --no-cache git gpg gpg-agent >/dev/null 2>&1
 
           build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-
-          git config --global user.name "Mailup"
-          git config --global user.email "ci@mailup.com"
-          git config --global url."ssh://git@bitbucket.org/".insteadOf "https://bitbucket.org/"
-
-          mkdir -p -m 0600 ~/.ssh && ssh-keyscan -t rsa -H bitbucket.org >> ~/.ssh/known_hosts
-          echo "    IdentityFile ~/.ssh/id_rsa" >> /etc/ssh/ssh_config
-
-          # Host Key verification
-          # ssh-keyscan -t rsa -H bitbucket.org >> ~/.ssh/known_hosts
-          export GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
-
-          eval `ssh-agent`
-          ssh-add ~/.ssh/id_rsa
-
-          # Compute ssh keys env variables
-          export SSH_KEY=$(cat ~/.ssh/id_rsa)
-
-          echo "Waiting docker ..."
-          until docker ps 1> /dev/null 2> /dev/null; do sleep 3; done;
 
           env="{{inputs.parameters.env}}"
           action="{{inputs.parameters.action}}"
@@ -200,31 +171,32 @@ spec:
             set +a      # turn off automatic exporting
           fi
 
+          export CI="true"
+
           export _EXPERIMENTAL_DAGGER_SERVICES_DNS="1"
           export _EXPERIMENTAL_DAGGER_CACHE_CONFIG="type=registry;ref=docker-registry.container-registry.svc.cluster.local:5000/ci-cache;mode=max"
           export _EXPERIMENTAL_DAGGER_RUNNER_HOST=kube-pod://dagger
 
-          go env -w GOPRIVATE=bitbucket.org/mailupteam/*
           go mod download
 
           mage ${action}
-      sidecars:
-        - name: dind
-          image: docker:20.10.23-dind-alpine3.17
-          env:
-            - name: DOCKER_TLS_CERTDIR
-              value: ""
-          securityContext:
-            privileged: true
-          volumeMounts:
-            - name: dind-socket
-              mountPath: /var/run/
-            - name: dagger-config
-              mountPath: /dagger-config
-            - name: dind-config
-              subPath: daemon.json
-              mountPath: /etc/docker/daemon.json
-          command: [dockerd-entrypoint.sh]
+      # sidecars:
+      #   - name: dind
+      #     image: docker:20.10.23-dind-alpine3.17
+      #     env:
+      #       - name: DOCKER_TLS_CERTDIR
+      #         value: ""
+      #     securityContext:
+      #       privileged: true
+      #     volumeMounts:
+      #       - name: dind-socket
+      #         mountPath: /var/run/
+      #       - name: dagger-config
+      #         mountPath: /dagger-config
+      #       - name: dind-config
+      #         subPath: daemon.json
+      #         mountPath: /etc/docker/daemon.json
+      #     command: [dockerd-entrypoint.sh]
       outputs:
         artifacts:
           - name: result

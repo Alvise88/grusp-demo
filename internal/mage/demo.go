@@ -3,7 +3,9 @@ package mage
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"strconv"
 
 	"dagger.io/dagger"
 	"github.com/alvise88/grusp-demo/internal/mage/util"
@@ -19,9 +21,26 @@ var helloRepo = "alvisevitturi/hello-grusp"
 var installerRepo = "alvisevitturi/hello-grusp-installer"
 
 func vsr(ctx context.Context, c *dagger.Client) (string, error) {
+	clean, err := c.Host().EnvVariable("CI").Value(ctx)
+
+	if err != nil {
+		clean = "false"
+	}
+
+	cleanBool, err := strconv.ParseBool(clean)
+
+	if err != nil {
+		cleanBool = false
+	}
+
 	semVer, err := version.Version(c, version.Opts{
-		Base:   "1.0",
-		Source: c.Host().Directory(".", dagger.HostDirectoryOpts{}),
+		Base:  "1.0",
+		Dirty: !cleanBool,
+		Source: c.Host().Directory(".", dagger.HostDirectoryOpts{
+			Include: []string{
+				".git",
+			},
+		}),
 	})
 
 	if err != nil {
@@ -57,6 +76,26 @@ func installer(c *dagger.Client) (*dagger.Container, error) {
 		WithExec(asbtractionutil.ToCommand("cdk8s import"))
 
 	return install, nil
+}
+
+// build hello-grusp
+func (t Demo) Version(ctx context.Context) error {
+	c, err := dagger.Connect(ctx, dagger.WithLogOutput(io.Discard))
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+
+	vsr, err := vsr(ctx, c)
+
+	if err != nil {
+		return err
+	}
+
+	// fmt.Printf("version: %s", vsr)
+	fmt.Print(vsr)
+
+	return nil
 }
 
 // build hello-grusp
@@ -96,6 +135,12 @@ func (t Demo) Publish(ctx context.Context) error {
 		return err
 	}
 
+	_, err = grusp.Publish(ctx, fmt.Sprintf("%s:%s", helloRepo, "latest"))
+
+	if err != nil {
+		return err
+	}
+
 	install, err := installer(c)
 
 	if err != nil {
@@ -103,6 +148,12 @@ func (t Demo) Publish(ctx context.Context) error {
 	}
 
 	_, err = install.Publish(ctx, fmt.Sprintf("%s:%s", installerRepo, vsr))
+
+	if err != nil {
+		return err
+	}
+
+	_, err = install.Publish(ctx, fmt.Sprintf("%s:%s", installerRepo, "latest"))
 
 	return err
 }
@@ -135,6 +186,7 @@ func (t Demo) Deploy(ctx context.Context) error {
 
 	_, err = c.Container().From(fmt.Sprintf("%s:%s", installerRepo, vsr)).
 		WithMountedDirectory("/root/.kube", kubeConfig).
+		WithEnvVariable("HELLO_VERSION", vsr).
 		WithEnvVariable("HELLO_REPLICAS", replicas).
 		WithExec(cdkCommand).
 		WithExec(asbtractionutil.ToCommand("kubectl apply -f ./dist/hello.k8s.yaml")).

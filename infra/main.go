@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"strconv"
 
@@ -21,9 +23,15 @@ func NewGruspChart(scope constructs.Construct, id string, props *GruspChartProps
 	}
 	chart := cdk8s.NewChart(scope, jsii.String(id), &cprops)
 
-	envReplicas, ok := os.LookupEnv("HELLO_REPLICAS")
+	version, ok := os.LookupEnv("HELLO_VERSION")
 
 	if !ok {
+		panic(errors.New("hello version must be provided"))
+	}
+
+	envReplicas, ok := os.LookupEnv("HELLO_REPLICAS")
+
+	if !ok || envReplicas == "" {
 		envReplicas = "1"
 	}
 
@@ -34,7 +42,7 @@ func NewGruspChart(scope constructs.Construct, id string, props *GruspChartProps
 	}
 
 	service.NewWebService(chart, jsii.String("hello"), &service.WebServiceProps{
-		Image:          jsii.String("alvisevitturi/hello-grusp:latest"),
+		Image:          jsii.String(fmt.Sprintf("alvisevitturi/hello-grusp:%s", version)),
 		Port:           jsii.Number(8080),
 		ContainerPort:  jsii.Number(8080),
 		InternetFacing: true,

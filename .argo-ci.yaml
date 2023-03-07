@@ -18,6 +18,7 @@ jobs:
         with:
           action: "demo:publish"
           registry-creds: regcred # credenziali da k8s
+  # non parte della vera ci/cd, solo per la demo
   deploy:
     needs: [publish] # dipendenze tra job
     runs-on: go
@@ -26,3 +27,5 @@ jobs:
         with:
           action: "demo:deploy"
           registry-creds: regcred # credenziali da k8s
+        env:
+          HELLO_REPLICAS: ${HELLO_REPLICAS:-"2"}

@@ -7,7 +7,7 @@ set -e
 
 mkdir -p /custom-tools
 
-VERSION="1.19.6"
+VERSION="1.20.1"
 
 # rm -rf /custom-tools/go && tar -C /custom-tools -xzf go${VERSION}.linux-amd64.tar.gz
 
