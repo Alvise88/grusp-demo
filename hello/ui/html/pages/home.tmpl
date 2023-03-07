@@ -1,0 +1,26 @@
+{{define "title"}}Home{{end}}
+
+{{define "main"}}
+    <div id="message">
+    {{ .Message }}
+    </div>
+    <div id="info">
+        <table>
+            <tr>
+            <th>namespace:</th>
+            <td>{{ .Namespace }}</td>
+            </tr>
+            <tr>
+            <th>pod:</th>
+            <td>{{ .Pod }}</td>
+            </tr>
+            <tr>
+            <th>node:</th>
+            <td>{{ .Node }}</td>
+            </tr>
+        </table>
+    </div>
+    <div id="footer">
+    {{ .Container }}
+    </div>
+{{end}}

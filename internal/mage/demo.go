@@ -20,7 +20,7 @@ type Demo mg.Namespace
 var helloRepo = "alvisevitturi/hello-grusp"
 var installerRepo = "alvisevitturi/hello-grusp-installer"
 
-func vsr(ctx context.Context, c *dagger.Client) (string, error) {
+func dirty(ctx context.Context, c *dagger.Client) bool {
 	clean, err := c.Host().EnvVariable("CI").Value(ctx)
 
 	if err != nil {
@@ -33,9 +33,13 @@ func vsr(ctx context.Context, c *dagger.Client) (string, error) {
 		cleanBool = false
 	}
 
+	return !cleanBool
+}
+
+func vsr(ctx context.Context, c *dagger.Client) (string, error) {
 	semVer, err := version.Version(c, version.Opts{
 		Base:  "1.0",
-		Dirty: !cleanBool,
+		Dirty: dirty(ctx, c),
 		Source: c.Host().Directory(".", dagger.HostDirectoryOpts{
 			Include: []string{
 				".git",

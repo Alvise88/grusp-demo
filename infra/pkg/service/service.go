@@ -8,13 +8,23 @@ import (
 	"grusp.io/infra/imports/k8s"
 )
 
+//   - name: KUBERNETES_NAMESPACE
+//     valueFrom:
+//       fieldRef:
+//         fieldPath: metadata.namespace
+
 type WebServiceProps struct {
 	constructs.Construct
-	Image          *string
-	Replicas       *float64
-	Port           *float64
-	ContainerPort  *float64
+	Image         *string
+	Replicas      *float64
+	Port          *float64
+	ContainerPort *float64
+
+	Health string
+
+	Env            *[]*k8s.EnvVar
 	InternetFacing bool
+	AlwaysPull     bool
 }
 
 func NewWebService(scope constructs.Construct, id *string, props *WebServiceProps) constructs.Construct {
@@ -86,6 +96,12 @@ func NewWebService(scope constructs.Construct, id *string, props *WebServiceProp
 		})
 	}
 
+	var pullPolicy = "IfNotPresent"
+
+	if props.AlwaysPull {
+		pullPolicy = "Always"
+	}
+
 	k8s.NewKubeDeployment(construct, jsii.String("deployment"), &k8s.KubeDeploymentProps{
 		Spec: &k8s.DeploymentSpec{
 			Replicas: replicas,
@@ -96,7 +112,18 @@ func NewWebService(scope constructs.Construct, id *string, props *WebServiceProp
 					Containers: &[]*k8s.Container{{
 						Name:  jsii.String("web"),
 						Image: props.Image,
+						// EnvFrom: props.EnvFrom,
+						Env:   props.Env,
 						Ports: &[]*k8s.ContainerPort{{ContainerPort: containerPort}},
+
+						LivenessProbe: &k8s.Probe{
+							HttpGet: &k8s.HttpGetAction{
+								Path: &props.Health,
+								Port: k8s.IntOrString_FromNumber(containerPort),
+							},
+						},
+
+						ImagePullPolicy: jsii.String(pullPolicy),
 					}},
 				},
 			},
