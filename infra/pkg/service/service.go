@@ -8,11 +8,6 @@ import (
 	"grusp.io/infra/imports/k8s"
 )
 
-//   - name: KUBERNETES_NAMESPACE
-//     valueFrom:
-//       fieldRef:
-//         fieldPath: metadata.namespace
-
 type WebServiceProps struct {
 	constructs.Construct
 	Image         *string

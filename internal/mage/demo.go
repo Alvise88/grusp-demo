@@ -216,7 +216,7 @@ func (t Demo) Deploy(ctx context.Context) error {
 		WithEnvVariable("HELLO_VERSION", vsr).
 		WithEnvVariable("HELLO_REPLICAS", replicas).
 		WithExec(cdkCommand).
-		WithExec(asbtractionutil.ToCommand("kubectl apply -f ./dist/hello.k8s.yaml")).
+		WithExec(asbtractionutil.ToCommand("kubectl -n default apply -f ./dist/hello.k8s.yaml")).
 		ExitCode(ctx)
 
 	return err
