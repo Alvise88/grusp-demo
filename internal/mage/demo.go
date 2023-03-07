@@ -2,16 +2,62 @@ package mage
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"dagger.io/dagger"
 	"github.com/alvise88/grusp-demo/internal/mage/util"
 	"github.com/alvise88/grusp-demo/pkg/k8s"
 	asbtractionutil "github.com/alvise88/grusp-demo/pkg/util"
+	"github.com/alvise88/grusp-demo/pkg/version"
 	"github.com/magefile/mage/mg" // mg contains helpful utility functions, like Deps
 )
 
 type Demo mg.Namespace
+
+var helloRepo = "alvisevitturi/hello-grusp"
+var installerRepo = "alvisevitturi/hello-grusp-installer"
+
+func vsr(ctx context.Context, c *dagger.Client) (string, error) {
+	semVer, err := version.Version(c, version.Opts{
+		Base:   "1.0",
+		Source: c.Host().Directory(".", dagger.HostDirectoryOpts{}),
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return semVer.Stdout(ctx)
+}
+
+func hello(c *dagger.Client) *dagger.Container {
+	repo := util.HelloRepository(c)
+
+	grusp := c.Container().Build(repo)
+
+	return grusp
+}
+
+func installer(c *dagger.Client) (*dagger.Container, error) {
+	cdkCode := c.Host().Directory("./infra", dagger.HostDirectoryOpts{
+		Exclude: []string{"import/", "dist/"},
+	})
+
+	cdk, err := k8s.Cdk8s(c, k8s.Cdk8sOpts{
+		Version: "2.1.148",
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	install := cdk.WithDirectory("/opt/app", cdkCode).
+		WithWorkdir("/opt/app").
+		WithExec(asbtractionutil.ToCommand("cdk8s import"))
+
+	return install, nil
+}
 
 // build hello-grusp
 func (t Demo) Build(ctx context.Context) error {
@@ -21,15 +67,11 @@ func (t Demo) Build(ctx context.Context) error {
 	}
 	defer c.Close()
 
-	repo := util.HelloRepository(c)
+	grusp := hello(c)
 
-	_, err = c.Container().Build(repo).ExitCode(ctx)
+	_, err = grusp.ExitCode(ctx)
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // publish hello-grusp
@@ -40,19 +82,29 @@ func (t Demo) Publish(ctx context.Context) error {
 	}
 	defer c.Close()
 
-	imageRepo := "alvisevitturi/hello-grusp:latest"
+	grusp := hello(c)
 
-	repo := util.HelloRepository(c)
-
-	hello := c.Container().Build(repo)
-
-	_, err = hello.Publish(ctx, imageRepo)
+	vsr, err := vsr(ctx, c)
 
 	if err != nil {
 		return err
 	}
 
-	return nil
+	_, err = grusp.Publish(ctx, fmt.Sprintf("%s:%s", helloRepo, vsr))
+
+	if err != nil {
+		return err
+	}
+
+	install, err := installer(c)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = install.Publish(ctx, fmt.Sprintf("%s:%s", installerRepo, vsr))
+
+	return err
 }
 
 // publish hello-grusp
@@ -63,29 +115,28 @@ func (t Demo) Deploy(ctx context.Context) error {
 	}
 	defer c.Close()
 
-	cdkCode := c.Host().Directory("./infra", dagger.HostDirectoryOpts{
-		Exclude: []string{"import/", "dist/"},
-	})
-
-	cdkCommand := []string{"cdk8s", "synth"}
-
-	cdk, err := k8s.Cdk8s(c, k8s.Cdk8sOpts{
-		Version: "2.1.148",
-	})
+	vsr, err := vsr(ctx, c)
 
 	if err != nil {
 		return err
 	}
 
+	cdkCommand := []string{"cdk8s", "synth"}
+
 	kubeConfig := c.Host().Directory(os.ExpandEnv("${HOME}/.kube"))
 
-	_, err = cdk.WithMountedDirectory("/opt/app", cdkCode).
+	varReplicas := c.Host().EnvVariable("HELLO_REPLICAS")
+
+	replicas, err := varReplicas.Value(ctx)
+
+	if err != nil {
+		replicas = "1"
+	}
+
+	_, err = c.Container().From(fmt.Sprintf("%s:%s", installerRepo, vsr)).
 		WithMountedDirectory("/root/.kube", kubeConfig).
-		WithWorkdir("/opt/app").
-		// WithExec(asbtractionutil.ToCommand("cdk8s --version")).
-		WithExec(asbtractionutil.ToCommand("cdk8s import")).
+		WithEnvVariable("HELLO_REPLICAS", replicas).
 		WithExec(cdkCommand).
-		// WithExec(asbtractionutil.ToCommand("ls -la")).
 		WithExec(asbtractionutil.ToCommand("kubectl apply -f ./dist/hello.k8s.yaml")).
 		ExitCode(ctx)
 
