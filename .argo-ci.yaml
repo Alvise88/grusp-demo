@@ -10,8 +10,16 @@ jobs:
         with:
           action: "demo:build" # azione da esguire
           registry-creds: regcred
-  publish:
+  test:
     needs: [build] # dipendenze tra job
+    runs-on: go # scelta del sdk
+    steps:
+      - name: test
+        with:
+          action: "demo:test" # azione da esguire
+          registry-creds: regcred
+  publish:
+    needs: [test] # dipendenze tra job
     runs-on: go
     steps:
       - name: publish

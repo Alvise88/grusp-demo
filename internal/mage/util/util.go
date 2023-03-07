@@ -2,6 +2,7 @@ package util
 
 import (
 	"dagger.io/dagger"
+	"github.com/alvise88/grusp-demo/pkg/util"
 )
 
 // Repository with common set of exclude filters to speed up upload
@@ -49,4 +50,32 @@ func HelloGoCodeOnly(c *dagger.Client) *dagger.Directory {
 			"**/Dockerfile", // needed for shim TODO: just build shim directly
 		},
 	})
+}
+
+func GoBase(c *dagger.Client) *dagger.Container {
+	repo := HelloGoCodeOnly(c)
+
+	// Create a directory containing only `go.{mod,sum}` files.
+	goMods := c.Directory()
+	for _, f := range []string{"go.mod", "go.sum"} {
+		goMods = goMods.WithFile(f, repo.File(f))
+	}
+
+	return c.Container().
+		From("golang:1.20.1-alpine").
+		// From("golang:1.20.0-alpine").
+		// gcc is needed to run go test -race https://github.com/golang/go/issues/9918 (???)
+		WithExec(util.ToCommand("apk add build-base")).
+		WithEnvVariable("CGO_ENABLED", "0").
+		// adding the git CLI to inject vcs info
+		// into the go binaries
+		WithExec([]string{"apk", "add", "git"}).
+		WithWorkdir("/app").
+		// run `go mod download` with only go.mod files (re-run only if mod files have changed)
+		WithMountedDirectory("/app", goMods).
+		WithExec([]string{"go", "mod", "download"}).
+		// run `go build` with all source
+		WithMountedDirectory("/app", repo).
+		// include a cache for go build
+		WithMountedCache("/root/.cache/go-build", c.CacheVolume("go-build"))
 }

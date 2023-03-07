@@ -40,14 +40,14 @@ spec:
           # Default: false
           - name: ssh-strict
             default: false
-      volumes:
-        - name: ssh-key
-          secret:
-            secretName: "{{inputs.parameters.ssh-key}}"
-            defaultMode: 384 # Equivalent to 0600
-            items:
-              - key: id_rsa
-                path: ./id_rsa
+      # volumes:
+      #   - name: ssh-key
+      #     secret:
+      #       secretName: "{{inputs.parameters.ssh-key}}"
+      #       defaultMode: 384 # Equivalent to 0600
+      #       items:
+      #         - key: id_rsa
+      #           path: ./id_rsa
       script:
         image: bitnami/git:2.37.1
         workingDir: /workspaces/{{inputs.parameters.path}}
@@ -72,5 +72,5 @@ spec:
         volumeMounts:
           - name: "{{workflow.parameters.workspaces-volume}}"
             mountPath: /workspaces
-          - name: ssh-key
-            mountPath: /root/.ssh
+          # - name: ssh-key
+          #   mountPath: /root/.ssh

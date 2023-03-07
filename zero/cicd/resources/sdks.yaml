@@ -60,13 +60,6 @@ spec:
           configMap:
             name: dagger-config-v1
             defaultMode: 0777
-        - name: gpg-key
-          secret:
-            secretName: "{{inputs.parameters.gpg-key}}"
-            defaultMode: 384 # Equivalent to 0600
-            items:
-              - key: gpg.asc
-                path: ./gpg.asc
         - name: docker-creds
           secret:
             secretName: "{{inputs.parameters.registry-creds}}"
@@ -117,8 +110,6 @@ spec:
             mountPath: /workspaces
           - name: dind-socket
             mountPath: /var/run/
-          - name: gpg-key
-            mountPath: /root/.gpg
           - name: docker-creds
             mountPath: /root/.docker
           - name: kube-creds
@@ -144,8 +135,8 @@ spec:
           # Add GoLang to the path
           export PATH=$PATH:/usr/local/go/bin
 
-          # Install gpg, FIXME try to use cutom tools
-          apk update >/dev/null 2>&1; apk add -U --no-cache git gpg gpg-agent >/dev/null 2>&1
+          # Install git
+          apk update >/dev/null 2>&1; apk add -U --no-cache git  >/dev/null 2>&1
 
           build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
@@ -172,6 +163,11 @@ spec:
           fi
 
           export CI="true"
+
+          # export CGO_ENABLED=0
+          # https://www.fairlyusefulcode.co.uk/post/go-alpine-linux/
+          # ln -s /lib/libc.musl-x86_64.so.1 /lib64/ld-linux-x86-64.so.2
+          # build-base
 
           export _EXPERIMENTAL_DAGGER_SERVICES_DNS="1"
           export _EXPERIMENTAL_DAGGER_CACHE_CONFIG="type=registry;ref=docker-registry.container-registry.svc.cluster.local:5000/ci-cache;mode=max"

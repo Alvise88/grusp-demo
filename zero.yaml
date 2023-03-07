@@ -19,6 +19,8 @@ nodes:
         nodeRegistration:
           kubeletExtraArgs:
             node-labels: "ingress-ready=true"
+            eviction-hard: "memory.available<40%"
+            eviction-pressure-transition-period: "30s"
     extraPortMappings:
       - containerPort: 80
         hostPort: 80

@@ -82,7 +82,7 @@ func installer(c *dagger.Client) (*dagger.Container, error) {
 	return install, nil
 }
 
-// build hello-grusp
+// version
 func (t Demo) Version(ctx context.Context) error {
 	c, err := dagger.Connect(ctx, dagger.WithLogOutput(io.Discard))
 	if err != nil {
@@ -102,7 +102,7 @@ func (t Demo) Version(ctx context.Context) error {
 	return nil
 }
 
-// build hello-grusp
+// build
 func (t Demo) Build(ctx context.Context) error {
 	c, err := dagger.Connect(ctx, dagger.WithLogOutput(os.Stderr))
 	if err != nil {
@@ -117,7 +117,30 @@ func (t Demo) Build(ctx context.Context) error {
 	return err
 }
 
-// publish hello-grusp
+// test
+func (t Demo) Test(ctx context.Context) error {
+	c, err := dagger.Connect(ctx, dagger.WithLogOutput(os.Stderr))
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+
+	cgoEnabledEnv := "0"
+	args := []string{"go", "test", "-p", "16", "-v", "-count=1"}
+
+	args = append(args, "./...")
+
+	_, err = util.GoBase(c).
+		WithMountedDirectory("/app", util.HelloRepository(c)). // need all the source for extension tests
+		WithWorkdir("/app").
+		WithEnvVariable("CGO_ENABLED", cgoEnabledEnv).
+		WithExec(args).
+		ExitCode(ctx)
+
+	return err
+}
+
+// publish
 func (t Demo) Publish(ctx context.Context) error {
 	c, err := dagger.Connect(ctx, dagger.WithLogOutput(os.Stderr))
 	if err != nil {
@@ -162,7 +185,7 @@ func (t Demo) Publish(ctx context.Context) error {
 	return err
 }
 
-// publish hello-grusp
+// deploy
 func (t Demo) Deploy(ctx context.Context) error {
 	c, err := dagger.Connect(ctx, dagger.WithLogOutput(os.Stderr))
 	if err != nil {
