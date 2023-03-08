@@ -21,6 +21,22 @@ func HelloRepository(c *dagger.Client) *dagger.Directory {
 	})
 }
 
+// Repository with common set of exclude filters to speed up upload
+func InfraRepository(c *dagger.Client) *dagger.Directory {
+	return c.Host().Directory("./hello", dagger.HostDirectoryOpts{
+		Exclude: []string{
+			// node
+			"**/node_modules",
+
+			// python
+			"**/__pycache__",
+			"**/.venv",
+			"**/.mypy_cache",
+			"**/.pytest_cache",
+		},
+	})
+}
+
 // HelloGoCodeOnly is Repository, filtered to only contain Go code.
 //
 // NOTE: this function is a shared util ONLY because it's used both by the Engine

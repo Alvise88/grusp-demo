@@ -10,19 +10,17 @@ import (
 
 type WebServiceProps struct {
 	constructs.Construct
-	Image         *string
-	Replicas      *float64
-	Port          *float64
-	ContainerPort *float64
-
-	Health string
-
-	Env            *[]*k8s.EnvVar
-	InternetFacing bool
-	AlwaysPull     bool
+	Image           *string
+	InternetFacing  bool
+	Port            *float64
+	ContainerPort   *float64
+	HealthCheckPath string
+	MemoryLimit     *float64
+	CPULimit        *float64
+	Replicas        *float64
 }
 
-func NewWebService(scope constructs.Construct, id *string, props *WebServiceProps) constructs.Construct {
+func NewWebService(scope constructs.Construct, id *string, props *WebServiceProps) (constructs.Construct, error) {
 	construct := constructs.NewConstruct(scope, id)
 
 	replicas := props.Replicas
@@ -91,12 +89,6 @@ func NewWebService(scope constructs.Construct, id *string, props *WebServiceProp
 		})
 	}
 
-	var pullPolicy = "IfNotPresent"
-
-	if props.AlwaysPull {
-		pullPolicy = "Always"
-	}
-
 	k8s.NewKubeDeployment(construct, jsii.String("deployment"), &k8s.KubeDeploymentProps{
 		Spec: &k8s.DeploymentSpec{
 			Replicas: replicas,
@@ -107,23 +99,58 @@ func NewWebService(scope constructs.Construct, id *string, props *WebServiceProp
 					Containers: &[]*k8s.Container{{
 						Name:  jsii.String("web"),
 						Image: props.Image,
-						// EnvFrom: props.EnvFrom,
-						Env:   props.Env,
+						Env: &[]*k8s.EnvVar{
+							{
+								Name: jsii.String("KUBERNETES_NAMESPACE"),
+								ValueFrom: &k8s.EnvVarSource{
+									FieldRef: &k8s.ObjectFieldSelector{FieldPath: jsii.String("metadata.namespace")},
+								},
+							},
+							{
+								Name: jsii.String("KUBERNETES_NODE_NAME"),
+								ValueFrom: &k8s.EnvVarSource{
+									FieldRef: &k8s.ObjectFieldSelector{FieldPath: jsii.String("spec.nodeName")},
+								},
+							},
+							{
+								Name: jsii.String("KUBERNETES_POD_NAME"),
+								ValueFrom: &k8s.EnvVarSource{
+									FieldRef: &k8s.ObjectFieldSelector{FieldPath: jsii.String("metadata.name")},
+								},
+							},
+							{
+								Name:  jsii.String("CONTAINER_IMAGE"),
+								Value: props.Image,
+							},
+						},
 						Ports: &[]*k8s.ContainerPort{{ContainerPort: containerPort}},
-
 						LivenessProbe: &k8s.Probe{
 							HttpGet: &k8s.HttpGetAction{
-								Path: &props.Health,
+								Path: &props.HealthCheckPath,
 								Port: k8s.IntOrString_FromNumber(containerPort),
 							},
 						},
-
-						ImagePullPolicy: jsii.String(pullPolicy),
+						ImagePullPolicy: jsii.String("Always"),
+						Resources: &k8s.ResourceRequirements{
+							Limits: &map[string]k8s.Quantity{
+								"memory": k8s.Quantity_FromString(jsii.String(fmt.Sprintf("%.0fMi", *props.MemoryLimit))),
+								"cpu":    k8s.Quantity_FromNumber(props.CPULimit),
+							},
+							Requests: &map[string]k8s.Quantity{
+								"memory": k8s.Quantity_FromString(jsii.String(fmt.Sprintf("%.0fMi", *props.MemoryLimit))),
+								"cpu":    k8s.Quantity_FromNumber(props.CPULimit),
+							},
+						},
 					}},
+					ImagePullSecrets: &[]*k8s.LocalObjectReference{
+						{
+							Name: jsii.String("regcred"),
+						},
+					},
 				},
 			},
 		},
 	})
 
-	return construct
+	return construct, nil
 }

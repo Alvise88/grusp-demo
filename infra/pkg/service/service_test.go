@@ -16,18 +16,26 @@ func TestNewWebService(t *testing.T) {
 	cases := []testCase{
 		{
 			props: WebServiceProps{
-				Image:          jsii.String("ghost"),
-				Replicas:       jsii.Number(1),
-				ContainerPort:  jsii.Number(2368),
-				InternetFacing: false,
+				Image:           jsii.String("ghost"),
+				InternetFacing:  false,
+				Port:            jsii.Number(2368),
+				ContainerPort:   jsii.Number(2368),
+				HealthCheckPath: "/health",
+				MemoryLimit:     jsii.Number(64),
+				CPULimit:        jsii.Number(0.1),
+				Replicas:        jsii.Number(1),
 			},
 		},
 		{
 			props: WebServiceProps{
-				Image:          jsii.String("ghost"),
-				Replicas:       jsii.Number(1),
-				ContainerPort:  jsii.Number(2368),
-				InternetFacing: true,
+				Image:           jsii.String("ghost"),
+				InternetFacing:  true,
+				Port:            jsii.Number(2368),
+				ContainerPort:   jsii.Number(2368),
+				HealthCheckPath: "/health",
+				MemoryLimit:     jsii.Number(64),
+				CPULimit:        jsii.Number(0.1),
+				Replicas:        jsii.Number(1),
 			},
 		},
 	}
@@ -35,7 +43,12 @@ func TestNewWebService(t *testing.T) {
 	for _, tc := range cases {
 		chart := cdk8s.Testing_Chart()
 
-		NewWebService(chart, jsii.String("test"), &tc.props)
+		_, err := NewWebService(chart, jsii.String("test"), &tc.props)
+
+		if err != nil {
+			t.Error(err)
+			return
+		}
 
 		manifests := cdk8s.Testing_Synth(chart)
 

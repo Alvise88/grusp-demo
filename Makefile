@@ -20,11 +20,12 @@ bootstrap: # Create Kind cluster
 	(  kind get clusters | grep -q $(KIND_CLUSTER_NAME) ) \
 	|| yq e '.networking.apiServerAddress = "$(KIND_CLUSTEER_IP)"' zero.yaml | kind create cluster --name $(KIND_CLUSTER_NAME) --config -
 
-cluster: bootstrap
-	kubectl -n cicd create secret generic kubecred --from-file=.kubeconfig=/home/vscode/.kube/config || true
-	kubectl -n default create secret generic regcred --from-file=.dockerconfigjson=/home/vscode/.docker/config.json --type=kubernetes.io/dockerconfigjson || true
+secrets: bootstrap
+	kubectl -n cicd create secret generic kubecred --from-file=.kubeconfig=/home/vscode/.kube/config --dry-run=client -o yaml | kubectl apply -f -
+	kubectl -n default create secret generic regcred --from-file=.dockerconfigjson=/home/vscode/.docker/config.json --type=kubernetes.io/dockerconfigjson --dry-run=client -o yaml | kubectl apply -f -
+
+cluster: secrets
 	kubectl kustomize --enable-alpha-plugins ./zero | kubectl apply -f -
-	kubectl -n cicd create secret generic regcred --from-file=.dockerconfigjson=/home/vscode/.docker/config.json --type=kubernetes.io/dockerconfigjson || true
 
 connection: cluster
 	$(call setup_env)
