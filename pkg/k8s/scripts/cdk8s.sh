@@ -15,6 +15,6 @@ cd /tmp
 
 rm -R  /tmp/k8s
 
-npm install -g cdk8s-cli
+npm install -g cdk8s-cli@2.1.150
 
 ln -s /usr/local/share/nvm/versions/node/v18.14.2/bin/cdk8s /usr/local/bin/cdk8s

@@ -39,7 +39,11 @@ service.NewWebService(chart, jsii.String("hello"), &service.WebServiceProps{
 })
 ```
 
-## Run pipeline in notebook
+La pipeline:
+
+![CICD](./docs/img/hello-cicd.excalidraw.png)
+
+## Eseguire la pipeline nel notebook
 
 ```shell
 export export HELLO_REPLICAS=3
@@ -49,7 +53,7 @@ mage demo:publish
 mage demo:deploy
 ```
 
-## Run pipeline from notebook
+## Eseguire la pipeline dal notebook
 
 ```shell
 cat .argo-ci.yaml | argoci run grusp-demo - --branch="main"

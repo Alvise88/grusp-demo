@@ -85,11 +85,12 @@ func Cdk8s(c *dagger.Client, opts Cdk8sOpts) (*dagger.Container, error) {
 	dir = dir.WithNewFile("/"+cloudKit, string(cloudKitInstall))
 
 	cdk := base.WithEntrypoint([]string{}).
-		WithEnvVariable("NODE_VERSION", "18.14.2").
+		WithEnvVariable("VERSION", "18.14.2").
 		WithEnvVariable("NODEGYPDEPENDENCIES", "true").
 		WithMountedDirectory("/scripts", dir).
 		WithExec(strings.Split("chmod +x "+"/scripts/node.sh", " ")).
 		WithExec(strings.Split("/scripts/node.sh", " ")).
+		WithEnvVariable("VERSION", "1.20.1").
 		WithExec(strings.Split("chmod +x "+"/scripts/golang.sh", " ")).
 		WithExec(strings.Split("/scripts/golang.sh", " ")).
 		WithExec(strings.Split("chmod +x "+"/scripts/cdk8s.sh", " ")).
