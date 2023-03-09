@@ -12,7 +12,6 @@ define setup_env
 	./generate_dotenv.sh
 endef
 
-# # 
 
 .PHONY: kind
 bootstrap: # Create Kind cluster
@@ -21,7 +20,11 @@ bootstrap: # Create Kind cluster
 	|| yq e '.networking.apiServerAddress = "$(KIND_CLUSTEER_IP)"' zero.yaml | kind create cluster --name $(KIND_CLUSTER_NAME) --config -
 
 secrets: bootstrap
+	grep -qF "credsStore" ~/.bashrc || rm  /home/vscode/.docker/config.json
+	./login.sh
+	kubectl create namespace cicd --dry-run=client -o yaml | kubectl apply -f -
 	kubectl -n cicd create secret generic kubecred --from-file=.kubeconfig=/home/vscode/.kube/config --dry-run=client -o yaml | kubectl apply -f -
+	kubectl -n cicd create secret generic regcred --from-file=.dockerconfigjson=/home/vscode/.docker/config.json --type=kubernetes.io/dockerconfigjson --dry-run=client -o yaml | kubectl apply -f -
 	kubectl -n default create secret generic regcred --from-file=.dockerconfigjson=/home/vscode/.docker/config.json --type=kubernetes.io/dockerconfigjson --dry-run=client -o yaml | kubectl apply -f -
 
 cluster: secrets
